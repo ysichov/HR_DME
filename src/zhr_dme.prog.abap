@@ -21,8 +21,11 @@ REPORT zhr_dme.
 *& https://github.com/ysichov/Smart-Debugger - Smart Debugger
 *& https://gist.github.com/AtomKrieg/7f4ec2e2f49b82def162e85904b7e25b - data object visualizer
 
-PARAMETERS: p_otype    TYPE otype MATCHCODE OBJECT h_t778o,
-            p_objid(8) TYPE n.
+PARAMETERS: p_plvar(2),
+            p_otype    TYPE otype MATCHCODE OBJECT h_t778o,
+            p_objid(8) TYPE n,
+            p_begda    TYPE begda,
+            p_endda    TYPE endda.
 
 CLASS lcl_data_receiver DEFINITION DEFERRED.
 CLASS lcl_data_transmitter DEFINITION DEFERRED.
@@ -76,7 +79,7 @@ CLASS lcl_ui IMPLEMENTATION.
 
     CALL FUNCTION 'RH_OBJID_REQUEST'
       EXPORTING
-        plvar            = cl_hrpiq00const=>c_plvar_active
+        plvar            = p_plvar
         otype            = l_type
         seark_begda      = sy-datum
         seark_endda      = sy-datum
@@ -1081,12 +1084,17 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
 
     DATA: m_lang             TYPE ddlanguage,
           m_tabname          TYPE tabname,
+          m_texttabname      TYPE tabname,
+          m_count            TYPE i,
           mo_alv             TYPE REF TO cl_gui_alv_grid,
           mo_sel             TYPE REF TO lcl_sel_opt,
           mr_table           TYPE REF TO data,
+          mr_text_table      TYPE REF TO data,
           mo_sel_parent      TYPE REF TO cl_gui_container,
           mo_alv_parent      TYPE REF TO cl_gui_container,
           mt_alv_catalog     TYPE lvc_t_fcat,
+          mt_text_components TYPE abap_component_tab,
+
           mt_fields          TYPE TABLE OF t_elem,
           mo_column_emitters TYPE TABLE OF t_column_emitter,
           mo_sel_width       TYPE i,
@@ -1106,6 +1114,10 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
       create_alv,
       create_sel_alv,
       set_header,
+      read_text_table,
+      update_texts,
+      get_where RETURNING VALUE(c_where) TYPE string,
+
       create_field_cat IMPORTING i_tname           TYPE tabname
                        RETURNING VALUE(et_catalog) TYPE lvc_t_fcat,
       translate_field IMPORTING i_lang TYPE ddlanguage CHANGING c_fld TYPE lvc_s_fcat,
@@ -1869,6 +1881,14 @@ CLASS lcl_table_viewer IMPLEMENTATION.
     ENDIF.
 
     ASSIGN mr_table->* TO <f_tab>.
+    IF m_tabname IS NOT INITIAL.
+      read_text_table( ).
+      lcl_sql=>read_any_table( EXPORTING i_tabname = m_tabname i_where = get_where( ) i_row_count = 100
+                           CHANGING cr_tab =  mr_table c_count = m_count ).
+      update_texts( ).
+
+
+    ENDIF.
     set_header( ).
     ls_layout-cwidth_opt = abap_true.
     ls_layout-sel_mode = 'D'.
@@ -1953,6 +1973,114 @@ CLASS lcl_table_viewer IMPLEMENTATION.
       mo_sel->update_sel_tab( ).
     ENDIF.
   ENDMETHOD.
+
+  METHOD get_where."dynamic where clause
+    DATA: lt_where TYPE rsds_twhere,
+          lt_range TYPE rsds_trange.
+
+    IF  mo_sel IS NOT INITIAL.
+      APPEND INITIAL LINE TO lt_range ASSIGNING FIELD-SYMBOL(<tabl>).
+      <tabl>-tablename = m_tabname.
+      LOOP AT mo_sel->mt_sel_tab INTO DATA(ls_tab) WHERE range IS NOT INITIAL.
+        APPEND INITIAL LINE TO <tabl>-frange_t ASSIGNING FIELD-SYMBOL(<t_range>).
+        IF sy-subrc = 0.
+          <t_range>-fieldname = ls_tab-field_label.
+          <t_range>-selopt_t  = ls_tab-range.
+        ENDIF.
+      ENDLOOP.
+
+      CALL FUNCTION 'FREE_SELECTIONS_RANGE_2_WHERE'
+        EXPORTING
+          field_ranges  = lt_range
+        IMPORTING
+          where_clauses = lt_where.
+
+      LOOP AT lt_where INTO DATA(ls_where) WHERE tablename = m_tabname.
+        LOOP AT ls_where-where_tab INTO DATA(l_where).
+          CONDENSE l_where-line.
+          c_where = |{ c_where } { l_where-line }|.
+        ENDLOOP.
+      ENDLOOP.
+    ENDIF.
+  ENDMETHOD.
+
+METHOD read_text_table.
+    FIELD-SYMBOLS: <f_tab> TYPE ANY TABLE.
+    lcl_ddic=>get_text_table( EXPORTING i_tname =  m_tabname IMPORTING e_tab = DATA(l_tab) ).
+    CHECK l_tab IS NOT INITIAL.
+    lcl_rtti=>create_table_by_name( EXPORTING i_tname = l_tab CHANGING c_table = mr_text_table ).
+    ASSIGN mr_text_table->* TO <f_tab>.
+    SELECT * FROM (l_tab) INTO TABLE <f_tab> ORDER BY PRIMARY KEY.
+  ENDMETHOD.
+
+METHOD update_texts.
+    DATA: l_text_field TYPE fieldname,
+          l_replace    TYPE string,
+          lv_clause    TYPE string.
+
+    FIELD-SYMBOLS: <f_tab> TYPE ANY TABLE.
+    FIELD-SYMBOLS: <text_tab> TYPE  STANDARD TABLE,
+                   <check>    TYPE any.
+
+    CHECK m_texttabname IS NOT INITIAL.
+
+    "text fields
+    ASSIGN mr_text_table->* TO <text_tab>.
+    READ TABLE <text_tab> INDEX 1 ASSIGNING FIELD-SYMBOL(<text_dummy>).
+    CHECK sy-subrc = 0.
+
+    READ TABLE lcl_alv_common=>mt_tabfields WITH KEY tabname = m_texttabname domname = 'SPRAS' INTO DATA(l_texttabfield).
+    IF sy-subrc = 0.
+      DATA(l_lang) = l_texttabfield-fieldname.
+    ENDIF.
+
+    l_replace = m_texttabname && '_'.
+    ASSIGN mr_table->* TO <f_tab>.
+
+    LOOP AT <f_tab> ASSIGNING FIELD-SYMBOL(<str>).
+      CLEAR lv_clause.
+      LOOP AT lcl_alv_common=>mt_tabfields INTO l_texttabfield WHERE tabname = m_texttabname AND keyflag = abap_true.
+        UNASSIGN <check>.
+        ASSIGN COMPONENT l_texttabfield-fieldname OF STRUCTURE <str> TO <check>.
+        IF sy-subrc NE 0.
+          READ TABLE lcl_alv_common=>mt_tabfields WITH KEY tabname = m_texttabname fieldname  = l_texttabfield-fieldname INTO DATA(l_texttab).
+          READ TABLE lcl_alv_common=>mt_tabfields WITH KEY tabname = m_tabname domname  = l_texttab-domname INTO DATA(l_maintab).
+          ASSIGN COMPONENT l_maintab-fieldname OF STRUCTURE <str> TO <check>.
+          CLEAR l_maintab.
+          IF sy-subrc NE 0.
+            CONTINUE.
+          ENDIF.
+        ENDIF.
+
+        IF lv_clause IS INITIAL.
+          lv_clause = |{ l_texttabfield-fieldname } = '{ <check> }'|.
+        ELSE.
+          lv_clause = |{ lv_clause } AND { l_texttabfield-fieldname } = '{ <check> }'|.
+        ENDIF.
+      ENDLOOP.
+
+      IF l_lang IS NOT INITIAL.
+        ASSIGN COMPONENT l_lang OF STRUCTURE <text_dummy> TO FIELD-SYMBOL(<dummy>).
+        IF sy-subrc = 0.
+          lv_clause = |{ lv_clause } AND { l_lang } = '{ m_lang }'|.
+        ENDIF.
+      ENDIF.
+
+      LOOP AT <text_tab> ASSIGNING FIELD-SYMBOL(<text_str>)  WHERE (lv_clause).
+        EXIT.
+      ENDLOOP.
+      CHECK sy-subrc = 0.
+
+      LOOP AT mt_text_components INTO DATA(ls_comp).
+        l_text_field = ls_comp-name.
+        REPLACE l_replace IN l_text_field WITH ''.
+        ASSIGN COMPONENT ls_comp-name OF STRUCTURE <str> TO FIELD-SYMBOL(<to>).
+        ASSIGN COMPONENT l_text_field OF STRUCTURE <text_str> TO FIELD-SYMBOL(<from>).
+        <to> = <from>.
+      ENDLOOP.
+    ENDLOOP.
+  ENDMETHOD.
+
 
   METHOD set_header.
     DATA: lv_text       TYPE as4text,
@@ -3767,12 +3895,18 @@ CLASS lcl_main_tree DEFINITION FINAL INHERITING FROM lcl_popup.
           mt_tree    TYPE TABLE OF ts_table,
           mo_tree    TYPE REF TO cl_salv_tree,
           m_objid(8) TYPE n,
+          m_plvar(2),
           m_otype(2),
+          m_begda    TYPE begda,
+          m_endda    TYPE endda,
           mv_key     TYPE salv_de_node_key.
 
     METHODS: constructor IMPORTING i_header TYPE clike DEFAULT 'HR Data Explorer'
+                                   i_plvar  TYPE any
                                    i_otype  TYPE any
-                                   i_objid  TYPE any,
+                                   i_objid  TYPE any
+                                   i_begda  TYPE begda
+                                   i_endda  TYPE endda,
       create_popup,
       add_persons_tables,
       add_objects_tables,
@@ -3787,8 +3921,12 @@ CLASS lcl_main_tree IMPLEMENTATION.
   METHOD constructor.
 
     super->constructor( ).
+    m_plvar = i_plvar.
     m_otype = i_otype.
     m_objid = i_objid.
+    m_begda = i_begda.
+    m_endda = i_endda.
+
     create_popup( ).
 
     cl_salv_tree=>factory(
@@ -3852,8 +3990,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
     FIELD-SYMBOLS:
          <fs_tbl>   TYPE STANDARD TABLE.
 
-    mv_key =
-              mo_tree->get_nodes( )->add_node(
+    mv_key = mo_tree->get_nodes( )->add_node(
                 related_node   = ''
                 relationship   = if_salv_c_node_relation=>last_child
                 row_style = if_salv_c_tree_style=>emphasized_a
@@ -3872,12 +4009,15 @@ CLASS lcl_main_tree IMPLEMENTATION.
       CHECK <fs_tbl> IS ASSIGNED.
 
       SELECT * FROM (ls_t777d-dbtab) INTO TABLE <fs_tbl>
-          WHERE pernr = m_objid.
+          WHERE pernr = m_objid
+            AND begda <= m_endda
+            AND endda >= m_begda.
 
       IF lines( <fs_tbl> ) > 0.
         APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
         <tree>-tabname = ls_t777d-dbtab.
         <tree>-ref = lr_tbldata.
+
         SELECT SINGLE itext INTO lv_name
           FROM t582s
          WHERE infty =  ls_t777d-infty
@@ -3931,8 +4071,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
     FIELD-SYMBOLS:
          <fs_tbl>   TYPE STANDARD TABLE.
 
-    mv_key =
-              mo_tree->get_nodes( )->add_node(
+    mv_key = mo_tree->get_nodes( )->add_node(
                 related_node   = ''
                 relationship   = if_salv_c_node_relation=>last_child
                 row_style = if_salv_c_tree_style=>emphasized_a
@@ -3951,8 +4090,11 @@ CLASS lcl_main_tree IMPLEMENTATION.
       CHECK <fs_tbl> IS ASSIGNED.
 
       SELECT * FROM (ls_t777d-dbtab) INTO TABLE <fs_tbl>
-          WHERE otype = m_otype
-            AND objid = m_objid.
+          WHERE plvar = m_plvar
+            AND otype = m_otype
+            AND objid = m_objid
+            AND begda <= m_endda
+            AND endda >= m_begda.
 
       IF lines( <fs_tbl> ) > 0.
         APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
@@ -3974,7 +4116,6 @@ CLASS lcl_main_tree IMPLEMENTATION.
            folder         = abap_false
          )->get_key( ).
       ENDIF.
-
     ENDLOOP.
 
   ENDMETHOD.
@@ -3991,6 +4132,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
 
     SELECT * FROM (iv_table) INTO TABLE <fs_tbl>
           WHERE pernr = m_objid.
+
 
     IF lines( <fs_tbl> ) > 0.
       APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
@@ -4026,6 +4168,10 @@ ENDCLASS.
 
 INITIALIZATION.
   p_otype = 'P'.
+  p_begda = '18000101'.
+  p_endda = '99991231'.
+  p_plvar = cl_hrpiq00const=>c_plvar_active.
+
 
   lcl_appl=>init_lang( ).
   lcl_appl=>init_icons_table( ).
@@ -4036,4 +4182,9 @@ AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_objid.
 
 
 AT SELECTION-SCREEN.
-  NEW lcl_main_tree( i_otype = p_otype i_objid = p_objid  ).
+  check p_objid is not initial and p_otype is not INITIAL.
+  NEW lcl_main_tree( i_plvar = p_plvar
+                     i_otype = p_otype
+                     i_objid = p_objid
+                     i_begda = p_begda
+                     i_endda = p_endda  ).

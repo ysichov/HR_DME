@@ -17,9 +17,33 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_PERNR</KEY>
-     <ENTRY>Person Number</ENTRY>
-     <LENGTH>21</LENGTH>
+     <KEY>P_BEGDA</KEY>
+     <ENTRY>From</ENTRY>
+     <LENGTH>12</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_ENDDA</KEY>
+     <ENTRY>To</ENTRY>
+     <LENGTH>10</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_OBJID</KEY>
+     <ENTRY>Object Id</ENTRY>
+     <LENGTH>17</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_OTYPE</KEY>
+     <ENTRY>Object type</ENTRY>
+     <LENGTH>19</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_PLVAR</KEY>
+     <ENTRY>Plan Variant</ENTRY>
+     <LENGTH>20</LENGTH>
     </item>
    </TPOOL>
   </asx:values>
