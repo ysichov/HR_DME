@@ -4,8 +4,8 @@ REPORT zhr_dme.
 *& Multi-windows program for viewing all HR objects and data structures
 *&---------------------------------------------------------------------*
 *& version: beta 0.1.5.5
-*& Git https://github.com/ysichov/SDDE
-*& RU description -
+*& Git https://github.com/ysichov/HR_DME
+*& RU description - https://ysychov.wordpress.com/2020/12/07/hr_dme/
 *& EN description -
 
 *& Written by Yurii Sychov
@@ -21,7 +21,8 @@ REPORT zhr_dme.
 *& https://github.com/ysichov/Smart-Debugger - Smart Debugger
 *& https://gist.github.com/AtomKrieg/7f4ec2e2f49b82def162e85904b7e25b - data object visualizer
 
-PARAMETERS: p_pernr(8). "TYPE persno MATCHCODE OBJECT prem.
+PARAMETERS: p_otype    TYPE otype MATCHCODE OBJECT h_t778o,
+            p_objid(8) TYPE n.
 
 CLASS lcl_data_receiver DEFINITION DEFERRED.
 CLASS lcl_data_transmitter DEFINITION DEFERRED.
@@ -33,6 +34,68 @@ CLASS lcl_box_handler DEFINITION."for memory clearing
   PUBLIC SECTION.
     METHODS: on_box_close FOR EVENT close OF cl_gui_dialogbox_container IMPORTING sender.
 ENDCLASS.
+
+CLASS lcl_ui DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS: f4_for_obj.
+ENDCLASS.
+
+CLASS lcl_ui IMPLEMENTATION.
+
+
+
+  METHOD f4_for_obj.
+    DATA: l_type        TYPE otype,
+          lt_dynpfields TYPE TABLE OF dynpread,
+          ls_objec      TYPE objec,
+          lt_objec      TYPE TABLE OF objec,
+          lt_marked     TYPE TABLE OF hrsobid.
+
+
+    CALL FUNCTION 'DYNP_VALUES_READ'
+      EXPORTING
+        dyname               = sy-repid
+        dynumb               = sy-dynnr
+        request              = 'A'
+      TABLES
+        dynpfields           = lt_dynpfields
+      EXCEPTIONS
+        invalid_abapworkarea = 1
+        invalid_dynprofield  = 2
+        invalid_dynproname   = 3
+        invalid_dynpronummer = 4
+        invalid_request      = 5
+        no_fielddescription  = 6
+        invalid_parameter    = 7
+        undefind_error       = 8
+        double_conversion    = 9
+        stepl_not_found      = 10
+        OTHERS               = 11.
+
+    l_type = lt_dynpfields[ fieldname = 'P_OTYPE' ]-fieldvalue.
+
+    CALL FUNCTION 'RH_OBJID_REQUEST'
+      EXPORTING
+        plvar            = cl_hrpiq00const=>c_plvar_active
+        otype            = l_type
+        seark_begda      = sy-datum
+        seark_endda      = sy-datum
+        dynpro_repid     = sy-repid
+        dynpro_dynnr     = sy-dynnr
+      IMPORTING
+        sel_object       = ls_objec
+      TABLES
+        sel_hrobject_tab = lt_objec
+      EXCEPTIONS
+        OTHERS           = 6.
+
+    IF sy-subrc = 0.
+      p_objid = ls_objec-objid.
+    ENDIF.
+  ENDMETHOD.
+
+ENDCLASS.
+
 
 CLASS lcl_appl DEFINITION.
   PUBLIC SECTION.
@@ -2939,7 +3002,7 @@ CLASS lcl_rtti_tree IMPLEMENTATION .
   METHOD create_popup.
     mo_box = create( i_width = 500 i_hight = 300 ).
 
-    mo_box->set_caption( CONV #( p_pernr ) ).
+    mo_box->set_caption( CONV #( p_objid ) ).
 
     IF lcl_appl=>m_ctrl_box_handler IS INITIAL.
       lcl_appl=>m_ctrl_box_handler = NEW #( ).
@@ -3703,13 +3766,16 @@ CLASS lcl_main_tree DEFINITION FINAL INHERITING FROM lcl_popup.
     DATA: tree_table TYPE tt_table,
           mt_tree    TYPE TABLE OF ts_table,
           mo_tree    TYPE REF TO cl_salv_tree,
-          m_pernr(8)    TYPE n,
+          m_objid(8) TYPE n,
+          m_otype(2),
           mv_key     TYPE salv_de_node_key.
 
     METHODS: constructor IMPORTING i_header TYPE clike DEFAULT 'HR Data Explorer'
-                                   i_pernr  TYPE any,
+                                   i_otype  TYPE any
+                                   i_objid  TYPE any,
       create_popup,
-      add_nodes,
+      add_persons_tables,
+      add_objects_tables,
       add_table IMPORTING iv_table TYPE string.
 
   PRIVATE SECTION.
@@ -3721,7 +3787,8 @@ CLASS lcl_main_tree IMPLEMENTATION.
   METHOD constructor.
 
     super->constructor( ).
-    m_pernr = i_pernr.
+    m_otype = i_otype.
+    m_objid = i_objid.
     create_popup( ).
 
     cl_salv_tree=>factory(
@@ -3741,7 +3808,11 @@ CLASS lcl_main_tree IMPLEMENTATION.
     lo_columns->get_column( 'TABNAME' )->set_output_length( 20 ).
 
     "add_buttons( ).
-    add_nodes( ).
+    IF p_otype = 'P'.
+      add_persons_tables( ).
+    ELSE.
+      add_objects_tables( ).
+    ENDIF.
 
     mo_tree->get_nodes( )->expand_all( ).
     DATA(lo_event) = mo_tree->get_event( ) .
@@ -3753,15 +3824,15 @@ CLASS lcl_main_tree IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD create_popup.
-   DATA: ls_0002      TYPE pa0002, "todo
+    DATA: ls_0002      TYPE pa0002,
           lv_title(60).
 
     SELECT SINGLE * FROM pa0002 INTO ls_0002
-      WHERE pernr = m_pernr
+      WHERE pernr = m_objid
         AND begda <= sy-datum
         AND endda >= sy-datum.
 
-    lv_title = |{ ls_0002-vorna } { ls_0002-nachn } { ls_0002-midnm } ({ m_pernr }) |.
+    lv_title = |{ ls_0002-vorna } { ls_0002-nachn } { ls_0002-midnm } ({ m_otype }{ m_objid }) |.
 
     mo_box = create( i_width = 500 i_hight = 250 ).
     mo_box->set_caption( lv_title  ).
@@ -3772,7 +3843,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
     SET HANDLER lcl_appl=>m_ctrl_box_handler->on_box_close FOR mo_box.
   ENDMETHOD.
 
-  METHOD add_nodes.
+  METHOD add_persons_tables.
 
     DATA: lt_t777d   TYPE TABLE OF t777d,
           lr_tbldata TYPE REF TO data,
@@ -3801,14 +3872,13 @@ CLASS lcl_main_tree IMPLEMENTATION.
       CHECK <fs_tbl> IS ASSIGNED.
 
       SELECT * FROM (ls_t777d-dbtab) INTO TABLE <fs_tbl>
-          WHERE pernr = m_pernr.
+          WHERE pernr = m_objid.
 
       IF lines( <fs_tbl> ) > 0.
         APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
         <tree>-tabname = ls_t777d-dbtab.
         <tree>-ref = lr_tbldata.
-
-        SELECT SINGLE itext INTO lv_name "todo
+        SELECT SINGLE itext INTO lv_name
           FROM t582s
          WHERE infty =  ls_t777d-infty
            AND sprsl = sy-langu.
@@ -3852,6 +3922,63 @@ CLASS lcl_main_tree IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD add_objects_tables.
+
+    DATA: lt_t777d   TYPE TABLE OF t777d,
+          lr_tbldata TYPE REF TO data,
+          lv_name    TYPE string.
+
+    FIELD-SYMBOLS:
+         <fs_tbl>   TYPE STANDARD TABLE.
+
+    mv_key =
+              mo_tree->get_nodes( )->add_node(
+                related_node   = ''
+                relationship   = if_salv_c_node_relation=>last_child
+                row_style = if_salv_c_tree_style=>emphasized_a
+                text           = 'Infotypes'
+                folder         = abap_true
+              )->get_key( ).
+
+    SELECT * FROM t777d INTO TABLE lt_t777d.
+
+    LOOP AT lt_t777d INTO DATA(ls_t777d).
+
+      CHECK ls_t777d-dbtab CP 'HRP*'.
+
+      CREATE DATA lr_tbldata TYPE TABLE OF (ls_t777d-dbtab).
+      ASSIGN lr_tbldata->* TO <fs_tbl>.
+      CHECK <fs_tbl> IS ASSIGNED.
+
+      SELECT * FROM (ls_t777d-dbtab) INTO TABLE <fs_tbl>
+          WHERE otype = m_otype
+            AND objid = m_objid.
+
+      IF lines( <fs_tbl> ) > 0.
+        APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
+        <tree>-tabname = ls_t777d-dbtab.
+        <tree>-ref = lr_tbldata.
+
+        SELECT SINGLE itext INTO lv_name
+          FROM t777t
+         WHERE infty =  ls_t777d-infty
+           AND langu = sy-langu.
+
+        lv_name = |({ ls_t777d-infty }) { lv_name } ({ lines( <fs_tbl> ) })|.
+
+        mo_tree->get_nodes( )->add_node(
+           related_node   = mv_key
+           data_row = <tree>
+           relationship   = if_salv_c_node_relation=>last_child
+           text           = CONV #( lv_name )
+           folder         = abap_false
+         )->get_key( ).
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
   METHOD add_table.
     DATA lr_tbldata TYPE REF TO data.
 
@@ -3863,7 +3990,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
     CHECK <fs_tbl> IS ASSIGNED.
 
     SELECT * FROM (iv_table) INTO TABLE <fs_tbl>
-          WHERE pernr = m_pernr.
+          WHERE pernr = m_objid.
 
     IF lines( <fs_tbl> ) > 0.
       APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
@@ -3892,15 +4019,21 @@ CLASS lcl_main_tree IMPLEMENTATION.
     ASSIGN COMPONENT 'REF' OF STRUCTURE <row> TO FIELD-SYMBOL(<ref>).
     ASSIGN COMPONENT 'TABNAME' OF STRUCTURE <row> TO FIELD-SYMBOL(<name>).
 
-    lcl_appl=>open_int_table( iv_name = CONV #( m_pernr ) it_ref = <ref> i_tname = <name> ).
+    lcl_appl=>open_int_table( iv_name = CONV #( m_objid ) it_ref = <ref> i_tname = <name> ).
   ENDMETHOD.
 
 ENDCLASS.
 
 INITIALIZATION.
+  p_otype = 'P'.
+
   lcl_appl=>init_lang( ).
   lcl_appl=>init_icons_table( ).
   lcl_plugins=>init( ).
 
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_objid.
+  lcl_ui=>f4_for_obj( ).
+
+
 AT SELECTION-SCREEN.
-  NEW lcl_main_tree( p_pernr  ).
+  NEW lcl_main_tree( i_otype = p_otype i_objid = p_objid  ).
