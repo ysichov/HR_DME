@@ -3,7 +3,7 @@ REPORT zhr_dme.
 *& HR Data Model Explorer
 *& Multi-windows program for viewing all HR objects and data structures
 *&---------------------------------------------------------------------*
-*& version: beta 0.1.5.5
+*& version: beta 0.1.10.10
 *& Git https://github.com/ysichov/HR_DME
 *& RU description - https://ysychov.wordpress.com/2020/12/07/hr_dme/
 *& EN description -
@@ -1094,7 +1094,7 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
           mo_alv_parent      TYPE REF TO cl_gui_container,
           mt_alv_catalog     TYPE lvc_t_fcat,
           mt_text_components TYPE abap_component_tab,
-
+          m_empty            type xfeld,
           mt_fields          TYPE TABLE OF t_elem,
           mo_column_emitters TYPE TABLE OF t_column_emitter,
           mo_sel_width       TYPE i,
@@ -1105,8 +1105,10 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
     METHODS:
       constructor IMPORTING i_tname           TYPE any OPTIONAL
                             i_additional_name TYPE string OPTIONAL
-                            ir_tab            TYPE REF TO data OPTIONAL,
-      refresh_table FOR EVENT selection_done OF lcl_sel_opt.
+                            ir_tab            TYPE REF TO data OPTIONAL
+                            i_empty           type xfeld OPTIONAL,
+      refresh_table FOR EVENT selection_done OF lcl_sel_opt,
+      read.
 
   PRIVATE SECTION.
     METHODS:
@@ -1376,7 +1378,7 @@ CLASS lcl_plugins IMPLEMENTATION.
 
   METHOD run_hrpy_rgdir.
     APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = 'HRPY_RGDIR'.
+    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = 'HRPY_RGDIR'  i_empty = abap_true.
     ASSIGN COMPONENT 'PERNR' OF STRUCTURE i_str TO FIELD-SYMBOL(<pernr>).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'PERNR' i_low = <pernr>  ).
     <obj>-alv_viewer->mo_sel->raise_selection_done( ).
@@ -1409,7 +1411,7 @@ CLASS lcl_plugins IMPLEMENTATION.
     ASSIGN COMPONENT 'SUBTY' OF STRUCTURE <str> TO FIELD-SYMBOL(<subty>).
     DATA(l_infty) = io_viewer->m_tabname+2(4).
     APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_result-stypt.
+    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_result-stypt  i_empty = abap_true.
     <obj>-alv_viewer->mo_sel->set_value( i_field = l_result-namst i_low = <subty> ).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'SUBTY' i_low = <subty> ).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'INFTY' i_low = l_infty ).
@@ -1487,7 +1489,7 @@ CLASS lcl_plugins IMPLEMENTATION.
           lo_viewer = io_viewer.
         ELSE.
           APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-          CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = ls_link-rtab.
+          CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = ls_link-rtab i_empty = abap_true.
           lo_viewer = <obj>-alv_viewer.
         ENDIF.
       ENDIF.
@@ -1526,7 +1528,7 @@ CLASS lcl_plugins IMPLEMENTATION.
     LOOP AT lcl_plugins=>mt_el_links INTO l_el_link WHERE element = l_field-rollname .
       IF lo_viewer IS INITIAL.
         APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-        CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_el_link-rtab.
+        CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_el_link-rtab i_empty = abap_true.
         lo_viewer = <obj>-alv_viewer.
       ENDIF.
       ASSIGN COMPONENT i_column OF STRUCTURE i_str TO FIELD-SYMBOL(<field>).
@@ -1561,7 +1563,7 @@ CLASS lcl_plugins IMPLEMENTATION.
 
     IF sy-subrc < 2.
       APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-      CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = field-checktable.
+      CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = field-checktable  i_empty = abap_true.
       LOOP AT lt_keys INTO DATA(l_keys).
         ASSIGN COMPONENT l_keys-forkey OF STRUCTURE i_str TO <field>.
         CHECK sy-subrc = 0.
@@ -1569,6 +1571,7 @@ CLASS lcl_plugins IMPLEMENTATION.
       ENDLOOP.
       <obj>-alv_viewer->mo_sel->set_value( i_field = 'SPRSL' i_low = io_viewer->m_lang  ).
       <obj>-alv_viewer->mo_sel->set_value( i_field = 'MOLGA' i_low = l_mol  ).
+      <obj>-alv_viewer->read( ).
       <obj>-alv_viewer->mo_sel->raise_selection_done( ).
     ENDIF.
   ENDMETHOD.
@@ -1723,6 +1726,7 @@ CLASS lcl_table_viewer IMPLEMENTATION.
                    <temptab> TYPE ANY TABLE.
 
     super->constructor( i_additional_name = i_additional_name ).
+    m_empty = i_empty.
     m_lang = sy-langu.
     mo_sel_width = 0.
     m_tabname = i_tname.
@@ -1881,12 +1885,11 @@ CLASS lcl_table_viewer IMPLEMENTATION.
     ENDIF.
 
     ASSIGN mr_table->* TO <f_tab>.
-    IF m_tabname IS NOT INITIAL.
+    IF m_tabname IS NOT INITIAL and m_empty is INITIAL.
       read_text_table( ).
       lcl_sql=>read_any_table( EXPORTING i_tabname = m_tabname i_where = get_where( ) i_row_count = 100
                            CHANGING cr_tab =  mr_table c_count = m_count ).
       update_texts( ).
-
 
     ENDIF.
     set_header( ).
@@ -2414,6 +2417,11 @@ METHOD update_texts.
       lcl_alv_common=>refresh( mo_sel->mo_sel_alv ).
     ENDIF.
   ENDMETHOD.                           "handle_user_command
+
+  method read.
+    lcl_sql=>read_any_table( EXPORTING i_tabname = m_tabname i_where = get_where( ) i_row_count = 100
+                           CHANGING cr_tab =  mr_table c_count = m_count ).
+  ENDMETHOD.
 
   METHOD refresh_table.
     DATA: ls_row    TYPE lcl_types=>t_sel_row,
@@ -4017,7 +4025,6 @@ CLASS lcl_main_tree IMPLEMENTATION.
         APPEND INITIAL LINE TO mt_tree ASSIGNING FIELD-SYMBOL(<tree>).
         <tree>-tabname = ls_t777d-dbtab.
         <tree>-ref = lr_tbldata.
-
         SELECT SINGLE itext INTO lv_name
           FROM t582s
          WHERE infty =  ls_t777d-infty
@@ -4161,7 +4168,15 @@ CLASS lcl_main_tree IMPLEMENTATION.
     ASSIGN COMPONENT 'REF' OF STRUCTURE <row> TO FIELD-SYMBOL(<ref>).
     ASSIGN COMPONENT 'TABNAME' OF STRUCTURE <row> TO FIELD-SYMBOL(<name>).
 
-    lcl_appl=>open_int_table( iv_name = CONV #( m_objid ) it_ref = <ref> i_tname = <name> ).
+           APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
+    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = <name> i_empty = abap_true.
+
+    <obj>-alv_viewer->mo_sel->set_value( i_field = 'PERNR' i_low = p_objid  ).
+    <obj>-alv_viewer->read( ).
+    <obj>-alv_viewer->mo_sel->raise_selection_done( ).
+
+
+    "lcl_appl=>open_int_table( iv_name = CONV #( m_objid ) it_ref = <ref> i_tname = <name> ).
   ENDMETHOD.
 
 ENDCLASS.
