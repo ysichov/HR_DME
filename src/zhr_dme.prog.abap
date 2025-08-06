@@ -3102,7 +3102,7 @@ CLASS lcl_rtti_tree IMPLEMENTATION .
     create_popup( ).
     "IF i_type = 'L'.
     cl_salv_tree=>factory(
-         EXPORTING r_container = mo_box
+         EXPORTING r_container = mo_variables_container
          IMPORTING r_salv_tree = tree
          CHANGING t_table = tree_table ).
     "ENDIF.
