@@ -1420,7 +1420,9 @@ CLASS lcl_plugins IMPLEMENTATION.
 
   METHOD run_py_cluster.
     DATA: lo_handle TYPE REF TO cl_abap_complexdescr,
-          l_name    TYPE string.
+          l_name    TYPE string,
+          lv_molga  TYPE MOLGA.
+
     FIELD-SYMBOLS: <f_tab> TYPE STANDARD  TABLE.
 
     DATA(l_row) = lcl_alv_common=>get_selected( io_viewer->mo_alv ).
@@ -1433,7 +1435,21 @@ CLASS lcl_plugins IMPLEMENTATION.
 
     FIELD-SYMBOLS: <cluster> TYPE any.
 
-    lo_handle ?= cl_abap_typedescr=>describe_by_name( 'PAYRU_RESULT' ).
+    CALL FUNCTION 'RH_PM_GET_MOLGA_FROM_PERNR'
+      EXPORTING
+        pernr           = <pernr>
+      IMPORTING
+        molga           = lv_molga
+      exceptions
+        nothing_found   = 1
+        no_active_plvar = 2
+        OTHERS          = 3.
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+
+    lo_handle ?= cl_abap_typedescr=>describe_by_name( |PAY{ lv_molga }_RESULT| ).
+
     CREATE DATA mr_cluster TYPE HANDLE lo_handle.
     ASSIGN mr_cluster->* TO <cluster>.
 
