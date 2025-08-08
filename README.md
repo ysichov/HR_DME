@@ -1,5 +1,5 @@
-# HR_DME - Under construction
-SAP HR Data Model Explorer
+# HR_DME SAP HR Data Model Explorer
+
 
 Adjustment over Simple Data Explorer - https://github.com/ysichov/Simple-Data-Explorer.
 Collects a list of data relevant to the selected object type: infotypes, payroll clusters, tables with entries. It can be considered as an alternative to PA20, PC00_M02_LINF0 and PC_PAYRESULT transactions. There are also plans to add time management data, business trips and other cluster data to get a complete picture of HR data in one transaction.
