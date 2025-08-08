@@ -1925,6 +1925,9 @@ CLASS lcl_table_viewer IMPLEMENTATION.
         it_outtab       = <f_tab>.
 
     mo_alv->get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = mt_alv_catalog ).
+    
+    DELETE mt_alv_catalog WHERE field_name = 'MANDT'.
+
     LOOP AT mt_alv_catalog ASSIGNING FIELD-SYMBOL(<catalog>).
       CLEAR <catalog>-key.
       DATA(ls_f4) = VALUE  lvc_s_f4( register   = abap_true chngeafter = abap_true fieldname  = <catalog>-fieldname ).
