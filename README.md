@@ -1,4 +1,4 @@
-# HR_DME SAP HR Data Model Explorer
+# HR_DME - SAP HR Data Model Explorer
 
 
 Adjustment over Simple Data Explorer - https://github.com/ysichov/Simple-Data-Explorer.
