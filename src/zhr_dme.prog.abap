@@ -4174,10 +4174,13 @@ CLASS lcl_main_tree IMPLEMENTATION.
            APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
     CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = <name> i_empty = abap_true.
 
-    <obj>-alv_viewer->mo_sel->set_value( i_field = 'PERNR' i_low = p_objid  ).
+    IF p_otype = 'P'.
+      <obj>-alv_viewer->mo_sel->set_value( i_field = 'PERNR' i_low = p_objid  ).
+    ELSE.
+      <obj>-alv_viewer->mo_sel->set_value( i_field = 'OBJID' i_low = p_objid  ).
+    ENDIF.
     <obj>-alv_viewer->read( ).
     <obj>-alv_viewer->mo_sel->raise_selection_done( ).
-
 
     "lcl_appl=>open_int_table( iv_name = CONV #( m_objid ) it_ref = <ref> i_tname = <name> ).
   ENDMETHOD.
