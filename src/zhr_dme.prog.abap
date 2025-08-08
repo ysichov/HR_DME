@@ -22,8 +22,8 @@ REPORT zhr_dme.
 *& https://gist.github.com/AtomKrieg/7f4ec2e2f49b82def162e85904b7e25b - data object visualizer
 
 PARAMETERS: p_plvar(2),
-            p_otype    TYPE otype MATCHCODE OBJECT h_t778o,
-            p_objid(8) TYPE n,
+            p_otype    TYPE otype MATCHCODE OBJECT h_t778o MEMORY ID POT,
+            p_objid    TYPE hrobjid MEMORY ID PON,
             p_begda    TYPE begda,
             p_endda    TYPE endda.
 
@@ -4188,7 +4188,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
 ENDCLASS.
 
 INITIALIZATION.
-  p_otype = 'P'.
+
   p_begda = '18000101'.
   p_endda = '99991231'.
   p_plvar = cl_hrpiq00const=>c_plvar_active.
