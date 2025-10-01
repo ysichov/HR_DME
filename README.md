@@ -9,7 +9,8 @@ So after entering obkect type 'P' and personnel number we can see all infotypes 
 
 Also it is possible to brouse several payroll clusters simultaneously and reach clusters tables and structures.
 
-<img width="1703" height="808" alt="image" src="https://github.com/user-attachments/assets/78bf233d-322e-47f6-a241-a4dcbeb797cb" />
+<img width="1703" height="808" alt="image" src="https://github.com/user-attachments/assets/0c7a56f2-e26a-4a3b-a8d8-604cf24b002a" />
+
 
 
 
