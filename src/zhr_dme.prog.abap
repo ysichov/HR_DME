@@ -1853,7 +1853,7 @@ CLASS lcl_table_viewer IMPLEMENTATION.
 
     mo_alv->get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = mt_alv_catalog ).
     
-    DELETE mt_alv_catalog WHERE field_name = 'MANDT'.
+    DELETE mt_alv_catalog WHERE fieldname = 'MANDT'.
 
     LOOP AT mt_alv_catalog ASSIGNING FIELD-SYMBOL(<catalog>).
       CLEAR <catalog>-key.
