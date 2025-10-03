@@ -677,103 +677,14 @@ CLASS lcl_window IMPLEMENTATION.
     m_history = '01'.
     m_zcode = '01'.
 
-    mo_box = create( i_name = 'SDDE Simple Debugger Data Explorer beta v. 0.2' i_width = 1200 i_hight = 400 ).
-    CREATE OBJECT mo_splitter ##FM_SUBRC_OK
-      EXPORTING
-        parent  = mo_box
-        rows    = 3
-        columns = 1
-      EXCEPTIONS
-        OTHERS  = 1.
-
-    mo_splitter->get_container(
-     EXPORTING
-       row       = 2
-       column    = 1
-     RECEIVING
-       container = mo_code_container ).
-
-    mo_splitter->get_container(
-      EXPORTING
-        row       = 1
-        column    = 1
-      RECEIVING
-        container = mo_toolbar_container ).
-
-    mo_splitter->set_row_height( id = 1  height = '3' ).
-
-    mo_splitter->set_row_sash( id    = 1 type  = 0 value = 0 ).
-
-    mo_splitter->get_container(
-      EXPORTING
-        row       = 3
-        column    = 1
-      RECEIVING
-        container = mo_variables_container ).
-
-    CREATE OBJECT mo_splitter_code ##FM_SUBRC_OK
-      EXPORTING
-        parent  = mo_code_container
-        rows    = 1
-        columns = 2
-      EXCEPTIONS
-        OTHERS  = 1.
-
-    mo_splitter_code->get_container(
-         EXPORTING
-           row       = 1
-           column    = 1
-         RECEIVING
-           container = mo_editor_container ).
-
-    mo_splitter_code->get_container(
-         EXPORTING
-           row       = 1
-           column    = 2
-         RECEIVING
-           container = mo_stack_container ).
-
-    mo_splitter_code->set_column_width( EXPORTING id = 1 width = '67' ).
-
-    CREATE OBJECT mo_splitter_var ##FM_SUBRC_OK
-      EXPORTING
-        parent  = mo_variables_container
-        rows    = 1
-        columns = 3
-      EXCEPTIONS
-        OTHERS  = 1.
-
-    mo_splitter_var->set_column_width( EXPORTING id = 1 width = '25' ).
-    mo_splitter_var->set_column_width( EXPORTING id = 2 width = '50' ).
-    mo_splitter_var->set_column_width( EXPORTING id = 3 width = '25' ).
-
-    mo_splitter_var->get_container(
-             EXPORTING
-               row       = 1
-               column    = 1
-             RECEIVING
-               container = mo_importing_container ).
-
-    mo_splitter_var->get_container(
-         EXPORTING
-           row       = 1
-           column    = 2
-         RECEIVING
-           container = mo_locals_container ).
-
-    mo_splitter_var->get_container(
-             EXPORTING
-               row       = 1
-               column    = 3
-             RECEIVING
-               container = mo_exporting_container ).
-
+    mo_box = create( i_name = 'SDDE Simple Debugger Data Explorer beta v. 0.2' i_width = 1500 i_hight = 800 ).
+   
     SET HANDLER on_box_close FOR mo_box.
 
     CREATE OBJECT mo_toolbar EXPORTING parent = mo_toolbar_container.
     mo_toolbar->set_visible( 'X' ).
     add_toolbar_buttons( ).
-    create_code_viewer( ).
+    "create_code_viewer( ).
 
   ENDMETHOD.
 
@@ -3121,7 +3032,7 @@ CLASS lcl_rtti_tree IMPLEMENTATION .
     create_popup( ).
     "IF i_type = 'L'.
     cl_salv_tree=>factory(
-         EXPORTING r_container = mo_variables_container
+         EXPORTING r_container = mo_box
          IMPORTING r_salv_tree = tree
          CHANGING t_table = tree_table ).
     "ENDIF.
