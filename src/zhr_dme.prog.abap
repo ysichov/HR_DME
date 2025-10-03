@@ -1332,7 +1332,8 @@ CLASS lcl_plugins IMPLEMENTATION.
   METHOD run_py_cluster.
     DATA: lo_handle TYPE REF TO cl_abap_complexdescr,
           l_name    TYPE string,
-          lv_molga  TYPE MOLGA.
+          lv_molga  TYPE MOLGA,
+          lv_iso    TYPE intca.
 
     FIELD-SYMBOLS: <f_tab> TYPE STANDARD  TABLE.
 
@@ -1355,11 +1356,15 @@ CLASS lcl_plugins IMPLEMENTATION.
         nothing_found   = 1
         no_active_plvar = 2
         OTHERS          = 3.
-    IF sy-subrc <> 0.
-      RETURN.
-    ENDIF.
+    
+    Check sy-subrc = 0.
 
-    lo_handle ?= cl_abap_typedescr=>describe_by_name( |PAY{ lv_molga }_RESULT| ).
+    SELECT SINGLE intca into lv_iso
+     FROM T500L WHERE molga = lv_molga.
+
+    Check sy-subrc = 0.
+
+    lo_handle ?= cl_abap_typedescr=>describe_by_name( |PAY{ lv_iso }_RESULT| ).
 
     CREATE DATA mr_cluster TYPE HANDLE lo_handle.
     ASSIGN mr_cluster->* TO <cluster>.
