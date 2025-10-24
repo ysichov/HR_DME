@@ -22,8 +22,8 @@ REPORT zhr_dme.
 *& https://gist.github.com/AtomKrieg/7f4ec2e2f49b82def162e85904b7e25b - data object visualizer
 
 PARAMETERS: p_plvar(2),
-            p_otype    TYPE otype MATCHCODE OBJECT h_t778o MEMORY ID POT,
-            p_objid    TYPE hrobjid MEMORY ID PON,
+            p_otype    TYPE otype MATCHCODE OBJECT h_t778o MEMORY ID pot,
+            p_objid    TYPE hrobjid MEMORY ID pon,
             p_begda    TYPE begda,
             p_endda    TYPE endda.
 
@@ -353,7 +353,7 @@ CLASS lcl_alv_common DEFINITION.
 
     TYPES: BEGIN OF t_tabfields.
              INCLUDE TYPE   dfies.
-             TYPES: empty   TYPE xfeld,
+    TYPES: empty   TYPE xfeld,
              is_text TYPE xfeld,
            END OF t_tabfields.
 
@@ -678,7 +678,7 @@ CLASS lcl_window IMPLEMENTATION.
     m_zcode = '01'.
 
     mo_box = create( i_name = 'SDDE Simple Debugger Data Explorer beta v. 0.2' i_width = 1500 i_hight = 800 ).
-   
+
     SET HANDLER on_box_close FOR mo_box.
 
     CREATE OBJECT mo_toolbar EXPORTING parent = mo_toolbar_container.
@@ -805,7 +805,7 @@ CLASS lcl_window IMPLEMENTATION.
     DATA gr_scan TYPE REF TO cl_ci_scan.
     DATA(gr_source) = cl_ci_source_include=>create( p_name = iv_program ).
 
-    CREATE OBJECT gr_scan EXPORTING p_include = gr_source .
+    CREATE OBJECT gr_scan EXPORTING p_include = gr_source.
     mo_code_viewer->set_text( table = gr_source->lines  ).
   ENDMETHOD.
 
@@ -912,7 +912,7 @@ ENDCLASS.
 CLASS lcl_data_transmitter DEFINITION.
   PUBLIC SECTION.
     EVENTS: data_changed EXPORTING VALUE(e_row) TYPE lcl_types=>t_sel_row,
-             col_changed EXPORTING VALUE(e_column) TYPE lvc_fname.
+      col_changed EXPORTING VALUE(e_column) TYPE lvc_fname.
     METHODS: emit IMPORTING e_row TYPE lcl_types=>t_sel_row,
       emit_col IMPORTING e_column TYPE lvc_fname.
 ENDCLASS.
@@ -944,7 +944,7 @@ CLASS lcl_data_receiver DEFINITION.
       update FOR EVENT data_changed OF lcl_data_transmitter IMPORTING e_row,
       update_col FOR EVENT col_changed OF lcl_data_transmitter IMPORTING e_column,
       on_grid_button_click
-          FOR EVENT button_click OF cl_gui_alv_grid
+        FOR EVENT button_click OF cl_gui_alv_grid
         IMPORTING
           es_col_id
           es_row_no.
@@ -1005,7 +1005,7 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
           mo_alv_parent      TYPE REF TO cl_gui_container,
           mt_alv_catalog     TYPE lvc_t_fcat,
           mt_text_components TYPE abap_component_tab,
-          m_empty            type xfeld,
+          m_empty            TYPE xfeld,
           mt_fields          TYPE TABLE OF t_elem,
           mo_column_emitters TYPE TABLE OF t_column_emitter,
           mo_sel_width       TYPE i,
@@ -1017,7 +1017,7 @@ CLASS lcl_table_viewer DEFINITION INHERITING FROM lcl_popup.
       constructor IMPORTING i_tname           TYPE any OPTIONAL
                             i_additional_name TYPE string OPTIONAL
                             ir_tab            TYPE REF TO data OPTIONAL
-                            i_empty           type xfeld OPTIONAL,
+                            i_empty           TYPE xfeld OPTIONAL,
       refresh_table FOR EVENT selection_done OF lcl_sel_opt,
       read.
 
@@ -1289,7 +1289,7 @@ CLASS lcl_plugins IMPLEMENTATION.
 
   METHOD run_hrpy_rgdir.
     APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = 'HRPY_RGDIR'  i_empty = abap_true.
+    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = 'HRPY_RGDIR' i_empty = abap_true.
     ASSIGN COMPONENT 'PERNR' OF STRUCTURE i_str TO FIELD-SYMBOL(<pernr>).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'PERNR' i_low = <pernr>  ).
     <obj>-alv_viewer->mo_sel->raise_selection_done( ).
@@ -1322,7 +1322,7 @@ CLASS lcl_plugins IMPLEMENTATION.
     ASSIGN COMPONENT 'SUBTY' OF STRUCTURE <str> TO FIELD-SYMBOL(<subty>).
     DATA(l_infty) = io_viewer->m_tabname+2(4).
     APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_result-stypt  i_empty = abap_true.
+    CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = l_result-stypt i_empty = abap_true.
     <obj>-alv_viewer->mo_sel->set_value( i_field = l_result-namst i_low = <subty> ).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'SUBTY' i_low = <subty> ).
     <obj>-alv_viewer->mo_sel->set_value( i_field = 'INFTY' i_low = l_infty ).
@@ -1332,7 +1332,7 @@ CLASS lcl_plugins IMPLEMENTATION.
   METHOD run_py_cluster.
     DATA: lo_handle TYPE REF TO cl_abap_complexdescr,
           l_name    TYPE string,
-          lv_molga  TYPE MOLGA,
+          lv_molga  TYPE molga,
           lv_iso    TYPE intca.
 
     FIELD-SYMBOLS: <f_tab> TYPE STANDARD  TABLE.
@@ -1352,17 +1352,17 @@ CLASS lcl_plugins IMPLEMENTATION.
         pernr           = <pernr>
       IMPORTING
         molga           = lv_molga
-      exceptions
+      EXCEPTIONS
         nothing_found   = 1
         no_active_plvar = 2
         OTHERS          = 3.
-    
-    Check sy-subrc = 0.
 
-    SELECT SINGLE intca into lv_iso
-     FROM T500L WHERE molga = lv_molga.
+    CHECK sy-subrc = 0.
 
-    Check sy-subrc = 0.
+    SELECT SINGLE intca INTO lv_iso
+     FROM t500l WHERE molga = lv_molga.
+
+    CHECK sy-subrc = 0.
 
     lo_handle ?= cl_abap_typedescr=>describe_by_name( |PAY{ lv_iso }_RESULT| ).
 
@@ -1495,7 +1495,7 @@ CLASS lcl_plugins IMPLEMENTATION.
 
     IF sy-subrc < 2.
       APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
-      CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = field-checktable  i_empty = abap_true.
+      CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = field-checktable i_empty = abap_true.
       LOOP AT lt_keys INTO DATA(l_keys).
         ASSIGN COMPONENT l_keys-forkey OF STRUCTURE i_str TO <field>.
         CHECK sy-subrc = 0.
@@ -1817,7 +1817,7 @@ CLASS lcl_table_viewer IMPLEMENTATION.
     ENDIF.
 
     ASSIGN mr_table->* TO <f_tab>.
-    IF m_tabname IS NOT INITIAL and m_empty is INITIAL.
+    IF m_tabname IS NOT INITIAL AND m_empty IS INITIAL.
       read_text_table( ).
       lcl_sql=>read_any_table( EXPORTING i_tabname = m_tabname i_where = get_where( ) i_row_count = 100
                            CHANGING cr_tab =  mr_table c_count = m_count ).
@@ -1857,7 +1857,7 @@ CLASS lcl_table_viewer IMPLEMENTATION.
         it_outtab       = <f_tab>.
 
     mo_alv->get_frontend_fieldcatalog( IMPORTING et_fieldcatalog = mt_alv_catalog ).
-    
+
     DELETE mt_alv_catalog WHERE fieldname = 'MANDT'.
 
     LOOP AT mt_alv_catalog ASSIGNING FIELD-SYMBOL(<catalog>).
@@ -1942,7 +1942,7 @@ CLASS lcl_table_viewer IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-METHOD read_text_table.
+  METHOD read_text_table.
     FIELD-SYMBOLS: <f_tab> TYPE ANY TABLE.
     lcl_ddic=>get_text_table( EXPORTING i_tname =  m_tabname IMPORTING e_tab = DATA(l_tab) ).
     CHECK l_tab IS NOT INITIAL.
@@ -1951,7 +1951,7 @@ METHOD read_text_table.
     SELECT * FROM (l_tab) INTO TABLE <f_tab> ORDER BY PRIMARY KEY.
   ENDMETHOD.
 
-METHOD update_texts.
+  METHOD update_texts.
     DATA: l_text_field TYPE fieldname,
           l_replace    TYPE string,
           lv_clause    TYPE string.
@@ -2353,7 +2353,7 @@ METHOD update_texts.
     ENDIF.
   ENDMETHOD.                           "handle_user_command
 
-  method read.
+  METHOD read.
     lcl_sql=>read_any_table( EXPORTING i_tabname = m_tabname i_where = get_where( ) i_row_count = 100
                            CHANGING cr_tab =  mr_table c_count = m_count ).
   ENDMETHOD.
@@ -4103,7 +4103,7 @@ CLASS lcl_main_tree IMPLEMENTATION.
     ASSIGN COMPONENT 'REF' OF STRUCTURE <row> TO FIELD-SYMBOL(<ref>).
     ASSIGN COMPONENT 'TABNAME' OF STRUCTURE <row> TO FIELD-SYMBOL(<name>).
 
-           APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
+    APPEND INITIAL LINE TO lcl_appl=>mt_obj ASSIGNING FIELD-SYMBOL(<obj>).
     CREATE OBJECT <obj>-alv_viewer EXPORTING i_tname = <name> i_empty = abap_true.
 
     IF p_otype = 'P'.
@@ -4125,17 +4125,25 @@ INITIALIZATION.
   p_endda = '99991231'.
   p_plvar = cl_hrpiq00const=>c_plvar_active.
 
-
   lcl_appl=>init_lang( ).
   lcl_appl=>init_icons_table( ).
   lcl_plugins=>init( ).
+
+  DATA itab TYPE TABLE OF sy-ucomm.
+
+  APPEND: 'ONLI' TO itab.
+  CALL FUNCTION 'RS_SET_SELSCREEN_STATUS'
+    EXPORTING
+      p_status  = sy-pfkey
+    TABLES
+      p_exclude = itab.
 
 AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_objid.
   lcl_ui=>f4_for_obj( ).
 
 
 AT SELECTION-SCREEN.
-  check p_objid is not initial and p_otype is not INITIAL.
+  CHECK p_objid IS NOT INITIAL AND p_otype IS NOT INITIAL.
   NEW lcl_main_tree( i_plvar = p_plvar
                      i_otype = p_otype
                      i_objid = p_objid
